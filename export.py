@@ -14,40 +14,52 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 # Configuration
 SCOPES = ["https://www.googleapis.com/auth/analytics.readonly"]
-KEY_FILE = "/Users/gamblin2/creds/ga3-bigquery-426418-2d4247ec24b2.json"
+KEY_FILE = "/Users/gamblin2/.gcp-creds/ga3-bigquery-426418-2d4247ec24b2.json"
 
-
-common_dims = [{"name": "ga:date"}]
-no_nday_users_dims = [
-    {"name": "ga:countryIsoCode"},
-    {"name": "ga:city"},
-    {"name": "ga:operatingSystem"},
-    {"name": "ga:fullReferrer"},
-    {"name": "ga:pagePath"},
-    {"name": "ga:language"},
-]
-
-common_metrics = [
-    {"expression": "ga:sessions"},
-    {"expression": "ga:pageviews"},
-    {"expression": "ga:newUsers"},
-    {"expression": "ga:sessionDuration"},
-    {"expression": "ga:avgSessionDuration"},
-    {"expression": "ga:pageviewsPerSession"},
-    {"expression": "ga:bounceRate"},
-    {"expression": "ga:organicSearches"},
-]
-no_nday_users_metrics = [{"expression": "ga:sessionsPerUser"}]
-
-
+# data sets we want to save for each data set
 dims_metrics = {
-    "users": (
-        common_dims + no_nday_users_dims,
-        [{"expression": "ga:users"}] + common_metrics + no_nday_users_metrics,
+    "by_country": (
+        [{"name": "ga:date"}, {"name": "ga:countryIsoCode"}],
+        [
+            {"expression": "ga:users"},
+            {"expression": "ga:pageViews"},
+            {"expression": "ga:sessions"},
+            {"expression": "ga:sessionDuration"},
+            {"expression": "ga:pageviewsPerSession"},
+            {"expression": "ga:bounceRate"},
+        ],
     ),
-    #    "1dayUsers": (common_dims, [{"expression": "ga:1dayUsers"}] + common_metrics),
-    #    "7dayUsers": (common_dims, [{"expression": "ga:7dayUsers"}] + common_metrics),
-    #    "30dayUsers": (common_dims, [{"expression": "ga:30dayUsers"}] + common_metrics),
+    "by_country_and_city": (
+        [{"name": "ga:date"}, {"name": "ga:countryIsoCode"}, {"name": "ga:city"}],
+        [
+            {"expression": "ga:users"},
+            {"expression": "ga:pageViews"},
+            {"expression": "ga:sessions"},
+            {"expression": "ga:sessionDuration"},
+            {"expression": "ga:pageviewsPerSession"},
+            {"expression": "ga:bounceRate"},
+        ],
+    ),
+    "by_path": (
+        [{"name": "ga:date"}, {"name": "ga:pagePath"}],
+        [
+            {"expression": "ga:users"},
+            {"expression": "ga:pageViews"},
+            {"expression": "ga:sessionDuration"},
+            {"expression": "ga:pageviewsPerSession"},
+            {"expression": "ga:bounceRate"},
+        ],
+    ),
+    "by_source": (
+        [{"name": "ga:date"}, {"name": "ga:source"}],
+        [
+            {"expression": "ga:users"},
+            {"expression": "ga:pageViews"},
+            {"expression": "ga:sessionDuration"},
+            {"expression": "ga:pageviewsPerSession"},
+            {"expression": "ga:bounceRate"},
+        ],
+    ),
 }
 
 
@@ -89,8 +101,6 @@ def get_report(analytics, view_id, start: date, end: date, dims: list, metrics: 
         "metrics": metrics,
         "pageSize": 100000,
     }
-    pprint.pprint(req)
-
     return analytics.reports().batchGet(body={"reportRequests": [req]}).execute()
 
 
@@ -138,7 +148,6 @@ def dump_monthly(
         print(f"{csv_path}: fetching...", end="")
         response = get_report(analytics, view_id, mstart, mend, dims, metrics)
         print("done.")
-
         try:
             df = response_to_dataframe(response)
             df.to_csv(csv_path)
@@ -149,17 +158,13 @@ def dump_monthly(
 
 def dump(analytics, name: str, view_id: int, start_date: date, end_date: date):
     for dataset, (dims, metrics) in dims_metrics.items():
-        print(dims)
-        print()
-        print(metrics)
-        print()
-
-        root = f"{name}/{dataset}"
+        root = f"data/{name}/{dataset}"
         print(f"starting dataset {root}")
         dump_monthly(analytics, root, view_id, start_date, end_date, dims, metrics)
 
 
 analytics = initialize_analyticsreporting()
-
-# dump("spack_docs", "153247856", date(2017, 6, 17), date(2022, 11, 12))
-dump(analytics, "spack_docs", "153247856", date(2021, 6, 1), date(2021, 6, 31))
+dump(analytics, "spack_docs", "153247856", date(2017, 6, 17), date(2022, 11, 12))
+dump(analytics, "spack.io", "153231804", date(2017, 6, 17), date(2023, 7, 16))
+dump(analytics, "spack_tutorial", "204724438", date(2019, 10, 27), date(2023, 7, 4))
+dump(analytics, "eb_docs", "93323974", date(2016, 8, 23), date(2023, 1, 28))

@@ -1,0 +1,5 @@
+spack:
+  specs:
+  - py-google-api-python-client
+  - py-oauth2client
+  - py-pandas
